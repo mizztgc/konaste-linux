@@ -34,7 +34,7 @@ The following games are supported via Konaste Linux:
 This script requires the following dependencies: (**NOTE:** The dependency names listed here are their associated packages on Arch Linux. Your distribution may have these packages labeled differently, or may have the required dependencies separated in other packages.)
 
 * **Web browser of your choice** (Firefox, Chrome, etc.)
-* **wine>=9.0** (this is a game for Windows after all)
+* **wine>=9.0** (self-explanatory.)
 * **wine-mono** (needed for the launcher's settings menu to function)
   * If your distribution does not have wine-mono packaged, you must install the version of mono that's compatible with your build of Wine. You can learn how [here](https://gitlab.winehq.org/wine/wine/-/wikis/Wine-Mono).
 * **pipewire** (for sound)
