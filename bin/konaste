@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION='0.2'
+VERSION='0.2.1'
 #
 # Konaste Linux: A Bash script for installing and playing KONAMI Amusement Game
 # Station (Konaste) games on Linux-based operating systems, using Wine.
@@ -39,6 +39,9 @@ WGET="$(command -v wget)"
 GAMEMODE="$(command -v gamemoderun)"
 GAMESCOPE="$(command -v gamescope)"
 _MANGOHUD="$(command -v mangohud)" # this would overwrite the default MANGOHUD env variable so the _ is necessary
+
+KDIALOG="$(command -v kdialog)"
+ZENITY="$(command -v zenity)"
 
 DEFAULT_PREFIX_LOCATION="$HOME/.local/share/konaste"
 
@@ -529,13 +532,26 @@ launch_game() {
 
 	declare -a launchParams=( )
 
-	# Cut down on DXVK messages in your terminal
-	export DXVK_LOG_LEVEL='error'
-
 	if [[ $noDXVK -eq 1 ]]; then
 		# Use Wine's built-in DirectX libraries instead of the ones from DXVK
 		log warning "DXVK has been disabled. You may encounter glitched/missing graphics while playing $(get_title)!"
 		export WINEDLLOVERRIDES="${WINEDLLOVERRIDES};d3d9=b;d3d11=b;dxgi=b"
+	else
+		export DXVK_LOG_LEVEL='error' # Cut down on DXVK messages in your terminal
+	fi
+
+	# Due to how Wayland is coded, it causes IIDX INFINITAS to fail to find a suitable display mode if your refresh rate
+	# is set to anything other than 60 or 120Hz, so this warning is absolutely necessary.
+	if [[ "$toPlay" == 'iidx' && "$XDG_SESSION_TYPE" == 'wayland' && $useGamescope -ne 1 ]]; then
+		IIDX_WAYLAND_WARNING="You appear to be on a Wayland session provided by ${XDG_CURRENT_DESKTOP}. Due to how Wayland is coded, it only exposes your currently set refresh rate to applications, and because beatmania IIDX INFINITAS cannot automatically find a suitable mode, it will throw a display initialization error on startup. Before clicking 'OK', ensure that your refresh rate is set to 60Hz (or 120Hz if supported by your display)."
+
+		case "$dialog" in
+			kdialog) "${KDIALOG}" --title "Wayland Warning" --sorry "${IIDX_WAYLAND_WARNING}" 2>/dev/null ;;
+			zenity) "${ZENITY}" --warning --title "Wayland Warning" --text "${IIDX_WAYLAND_WARNING}" 2>/dev/null ;;
+			*) ;;
+		esac
+
+		unset IIDX_WAYLAND_WARNING
 	fi
 
 	if [[ $noLoopback -ne 1 ]]; then
@@ -713,6 +729,20 @@ main() {
 			exit 127
 		fi
 	}
+
+	if [[ "$XDG_CURRENT_DESKTOP" == 'KDE' && -x "${KDIALOG}" ]]; then
+		dialog='kdialog'
+	elif [[ "$XDG_CURRENT_DESKTOP" == 'GNOME' && -x "${ZENITY}" ]]; then
+		dialog='zenity'
+	elif [[ -x "${ZENITY}" ]]; then
+		dialog='zenity'
+	elif [[ -x "${KDIALOG}" ]]; then
+		dialog='kdialog'
+	else
+		log warning "No dialog handler detected!"
+	fi
+
+
 
 	# Terminate if either one of these are running
 	block_gamescope
