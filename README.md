@@ -1,4 +1,4 @@
-# Konaste Linux (formerly Infinitas for Linux)
+# Konaste Linux
 An unofficial method of playing KONAMI Amusement Game Station (Konaste/コナステ) games on Linux, written in Bash
 
 ## DISCLAIMER:
