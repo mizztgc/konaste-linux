@@ -17,6 +17,16 @@ VERSION='0.2.2'
 # Konaste titles have been tested, and may exhibit some undocumented bugs.
 #
 
+#
+# HOW IT WORKS:
+# 1. User selects game launcher from DE/WM
+# 2. Konaste Linux initializes a Wineprefix, if necessary
+# 3. Search the prefix's registry for the game's InstallDir key
+# 4. Download and run the game installer, if not installed
+# 5. Open the game's launch page in a browser, if no URI is provided
+# 6. Start the game's launcher, with the URI as an argument
+# 7. GO BONGA~!
+#
 
 WINE="$(command -v wine)"
 WINEBOOT="$(command -v wineboot)"
@@ -75,13 +85,12 @@ show_help() {
 		echo -e "  list  List installed games"
 		echo -e "  help  Show this message"
 		echo -e "\n\033[1mFlags: \033[0m"
-		echo -e "  --silent            Skip the game installer and use defaults (requires msitools)"
+		echo -e "  --silent            Skip the game installer and use defaults "
 		echo -e "  --wine-vd           Run through Wine's virtual desktop"
 		echo -e "\n\033[1mThe following flags are experimental and can break things:\033[0m"
 		echo -e "  --disable-dxvk      Use Wine's built-in DirectX libraries instead of DXVK"
 		echo -e "  --disable-loopback  Do not enable the virtual output workaround for some games"
-		echo -en "  --wayland           Run Wine with the Wayland driver instead of X11 "
-		[[ "$XDG_SESSION_TYPE" != 'wayland' ]] && echo -en '\033[38;5;1m(requires wayland)\033[0m'
+		echo -e "  --wayland           Run Wine with the Wayland driver instead of X11 "
 		echo -e "\n\nFor a list of usable game IDs, run the following:"
 		echo -e "  \033[1m\$ $(basename -- $0) help \033[4mgameid\033[0m"
 	fi
@@ -172,6 +181,85 @@ parse_flags() {
 ####################################################################################################
 ####################################################################################################
 
+function verify_uri() {
+	[[ -z "$launchURI" || -z "$toPlay" ]] && return 127
+
+	if [[ "$launchURI" =~ ^bm2dxinf:// || "$launchURI" =~ ^konaste.*:// ]]; then
+		if [[ "$toPlay" == 'iidx' ]]; then
+			if [[ "$launchURI" == konaste.*://* ]]; then
+				error "${GAME_TITLE} cannot be started with a ${launchURI%://*}:// URI"
+				return 1
+			fi
+
+			# Work our way up
+			uriContent="${launchURI##*://}"
+			if [[ "$uriContent" =~ login\?tk= ]]; then
+				uriContent="${uriContent##*login\?tk=}"
+				uriToken="${uriContent%\&*}"
+				#uriMode=$(tr -dc '[:alpha:]' <<< "${uriContent##*\&}")
+
+				if [[ "${#uriToken}" -ne 64 ]]; then
+					error "Token length is not equal to 64"
+					return 2
+				fi
+
+				uriMode=$(grep -Eo '&.*$' <<< "$uriContent" | tr -dc '[:alpha:]')
+				if [[ -z "$uriMode" ]]; then
+					# If you don't include the thing at the end, beatmania IIDX INFINITAS will
+					# always assume it is being launched in release mode (rel).
+					warning "No mode specified! Assuming release mode..."
+					launchURI+='&rel='
+
+					unset uriMode uriContent uriToken
+					return 0
+				else
+					if [[ "$uriMode" != 'rel' && "$uriMode" != 'trial' ]]; then
+						error "Unrecognized mode for ${GAME_TITLE} specified: $uriMode" >&2
+						return 4
+					else
+						unset uriMode uriContent uriToken
+						return 0
+					fi
+				fi
+			fi
+
+			echo "Malformed URI for ${GAME_TITLE} provided" >&2
+			return 1
+		else
+			if [[ "$launchURI" == bm2dxinf://* ]]; then
+				error "${GAME_TITLE} cannot be started with a ${launchURI%://*}:// URI"
+				return 1
+			fi
+			uriId=$(cut -d'.' -f2 2>/dev/null <<< "${launchURI%://*}")
+			if [[ "$uriId" != $(cut -d'.' -f2 2>/dev/null <<< "$URI") ]]; then
+				error "Invalid Konaste URI: konaste.${uriId}"
+				return 2
+			fi
+
+			uriToken=( $(sed -e 's:\-:\ :g' 2>/dev/null <<< "${launchURI##*://}") )
+			# Now go through all the entries
+			for (( i=0; i<5; i++ )); do
+				case $i in
+					0)     grep -qE '[0-9a-f]{8}' <<< ${uriToken[$i]}  ;;
+					1|2|3) grep -qE '[0-9a-f]{4}' <<< ${uriToken[$i]}  ;;
+					4)     grep -qE '[0-9a-f]{12}' <<< ${uriToken[$i]} ;;
+				esac
+
+				if [[ $? -ne 0 ]]; then
+					error "Malformed URI for ${GAME_TITLE} provided"
+					return 3
+				fi
+			done
+
+			unset uriToken uriId
+			return 0
+		fi
+	else
+		error "Invalid URI specified: $launchURI"
+		return 1
+	fi
+}
+
 function get_registry_key() {
 	[[ -z "$1" ]] && return 126
 
@@ -196,6 +284,7 @@ function get_registry_key() {
 }
 
 function get_launcher_for_game() {
+
 	# I think just trying to look for the launcher within the filesystem would've
 	# been quicker, but I REALLY want this to see if the file exists.
 	[[ -z "$toPlay" ]] && return 1
@@ -263,7 +352,7 @@ function get_game_information() {
 		ddr)
 			GAME_TITLE='DanceDanceRevolution GRAND PRIX'
 			DIR_TITLE='DanceDanceRevolution'
-			SIMPLE_NAME="ddr-grandprix"
+			SIMPLE_NAME="ddr-gp"
 			INSTALLER_LINK="https://d2el0dli9l0x2p.cloudfront.net/installer/ddr_installer_2022012601.msi"
 			LAUNCH_PAGE="http://p.eagate.573.jp/game/konasteapp/API/login/login.html?game_id=ddr"
 			LAUNCHER_NAME='launcher'
@@ -334,6 +423,22 @@ function get_game_information() {
 ####################################################################################################
 ####################################################################################################
 ####################################################################################################
+
+list_games() {
+	get() {
+		toPlay="$1"
+		[[ -n "$(get_launcher_for_game)" ]] && echo "$toPlay"
+	}
+
+	get 'iidx'
+	get 'sdvx'
+	get 'ddr'
+	get 'gitadora'
+	get 'popn'
+	get 'nostalgia'
+	get 'bombergirl'
+	exit 0
+}
 
 prepare_wineprefix() {
 	# Create the Wineprefix if it does not exist
@@ -453,83 +558,62 @@ launch_game() {
 	[[ -z "$toPlay" ]] && exit 1
 	log info "Launching $(get_title)..."
 
+	verify_uri # verifies the URI
+
 	declare -a launchParams=( )
 
 	if [[ $noDXVK -eq 1 ]]; then
 		# Use Wine's built-in DirectX libraries instead of the ones from DXVK
 		log warning "DXVK has been disabled. You may encounter glitched/missing graphics while playing $(get_title)!"
 		export WINEDLLOVERRIDES="${WINEDLLOVERRIDES};d3d9=b;d3d11=b;dxgi=b"
+	else
+		export DXVK_LOG_LEVEL='error' # Cut down on DXVK messages in your terminal
 	fi
-
-	# Warn the user if playing an untested game
-	case "$toPlay" in
-		iidx|sdvx|bombergirl) ;;
-		*)
-			log warning "$(get_title) has not been fully tested. Expect issues"
-			UNTESTED_WARNING="$(get_title) has not been tested by the developer. Any issues within this game should be reported on the Konaste Linux GitHub page, which can be found at:\n\nhttps://github.com/mizztgc/konaste-linux"
-
-			[[ -x "${ZENITY}" ]] && "${ZENITY}" --warning \
-				--title "Untested Game Warning" \
-				--width 400 \
-				--text "${UNTESTED_WARNING}" 2>/dev/null
-
-			unset UNTESTED_WARNING
-			;;
-	esac
 
 	# Due to how Wayland is coded, it causes IIDX INFINITAS to fail to find a suitable display mode if your refresh rate
 	# is set to anything other than 60 or 120Hz, so this warning is absolutely necessary.
 	if [[ "$toPlay" == 'iidx' && "$XDG_SESSION_TYPE" == 'wayland' && $useGamescope -ne 1 ]]; then
-		log warning "Wayland detected; expect issues"
-		IIDX_WAYLAND_WARNING="You appear to be on a Wayland session provided by ${XDG_CURRENT_DESKTOP}. Due to how Wayland is coded, it only exposes your currently set refresh rate to applications, and because beatmania IIDX INFINITAS cannot automatically find a suitable mode, it will throw a display initialization error on startup.\n\nBefore clicking 'OK', ensure that your refresh rate is set to 60Hz (or 120Hz if supported by your display)."
+		IIDX_WAYLAND_WARNING="You appear to be on a Wayland session provided by ${XDG_CURRENT_DESKTOP}. Due to how Wayland is coded, it only exposes your currently set refresh rate to applications, and because beatmania IIDX INFINITAS cannot automatically find a suitable mode, it will throw a display initialization error on startup. Before clicking 'OK', ensure that your refresh rate is set to 60Hz (or 120Hz if supported by your display)."
 
-		[[ -x "${ZENITY}" ]] && "${ZENITY}" --warning --title "Wayland Warning" --text "${IIDX_WAYLAND_WARNING}" 2>/dev/null
+		[[ -x "${ZENITY}" ]] && "${ZENITY}" --warning --title "Wayland Warning" --width 400 --text "${IIDX_WAYLAND_WARNING}" 2>/dev/null
 		unset IIDX_WAYLAND_WARNING
 	fi
 
-	# If the user has specified the --disable-loopback flag, do not enable the loopback device.
-	# But then again, bombergirl uses Unity, so it's (probably) using DirectSound or whatever
-	# that engine uses by default.
 	if [[ $noLoopback -ne 1 ]]; then
+		# The BEMANI games require a loopback device for audio to work.
+		# Bomber Girl uses a proper game engine (Unity) and doesn't need such workarounds.
+		# Thanks for making things difficult, konmai!
 		if [[ "$toPlay" != 'bombergirl' ]]; then
 			[[ -z "${PW_LOOPBACK}" ]] && log error "Missing PipeWire executable: pw-loopback" && exit 1
 			[[ -z "${PACTL}" ]] && log error "Missing dependency: libpulse" && exit 1
 
-			# Regular expressions annoy me...
-			current_samplerate=$("${PACTL}" info | grep -Eo '[0-9]{5,6}Hz' | tr -dc '[:digit:]')
+			# I may have had help from ChatGPT for this part (damn regular expressions...)
+			current_samplerate=$($PACTL info | grep -w 'Default Sample Specification:' | sed 's/.* \([0-9]*\)Hz/\1/')
 			if [[ "$current_samplerate" -ne 44100 ]]; then
-				#log warning "Audio sample rate detected at ${current_samplerate}Hz. Enabling loopback device..."
+				log warning "Audio sample rate detected at ${current_samplerate}Hz. Enabling loopback device..."
 				"${PW_LOOPBACK}" -m '[ FL FR ]' --capture-props='media.class=Audio/Sink node.name=konaste node.description=Konaste audio.rate=44100' &
-				PW_LOOPBACK_PID=$!
-
-				export PULSE_SINK=konaste
+				[[ $? -eq 0 ]] && log info "Successfully enabled PipeWire loopback device" >&2 && export PULSE_SINK=konaste
 			else
 				log info "Audio sample rate detected at 44100Hz. Not creating loopback device..." >&2
 			fi
 			unset current_samplerate
 		fi
 	else
-		if [[ "$toPlay" != 'bombergirl' ]]; then
-			log warning "--disable-loopback flag specified! You may not have audio while playing $(get_title)!"
-		fi
+		[[ "$toPlay" != 'bombergirl' ]] && log warning "--disable-loopback flag specified! You may not have audio while playing $(get_title)!"
 	fi
 
 	launchParams+=( "${WINE}" start '/high' '/wait' )
 	[[ $useWineVD -eq 1 ]] && launchParams+=( explorer '/desktop=Konaste,1920x1080' )
 
-	# And we've finally made it to the part where we launch everything.
-	# LANG is set to Japanese so that text isn't garbled.
+	# The time has finally come.
 	LANG='ja_JP.UTF-8' "${launchParams[@]}" "${launcher}" "${launchUri}"
-	"${WINESERVER}" -w # This is to wait for all the processes launched by Wine to terminate
+	"${WINESERVER}" -w
 
 	# Kill the loopback device if it's running
-	if [[ ! -z $PW_LOOPBACK_PID ]]; then
-		log info "Terminating loopback device..."
-		kill $PW_LOOPBACK_PID
+	if [[ $(jobs | wc -l) -gt 0 ]]; then
+		kill -15 $(jobs -p)
 		if [[ $? -eq 0 ]]; then
-			log ok "Terminated loopback device"
-		else
-			log error "Failed to terminate loopback device. Consider manually terminating the pw-loopback process."
+			log info "Terminated PipeWire loopback device"
 		fi
 	fi
 
@@ -625,8 +709,13 @@ install_game() {
 }
 
 main() {
-	# Terminate if running as root
-	[[ $EUID -eq 0 ]] && log error "Do not run Konaste Linux as root/sudo." && exit 127
+	# Warn if running as the root user.
+	[[ $EUID -eq 0 ]] && log warning "Avoid running this script as root/sudo."
+
+	if [[ ! -x "${ZENITY}" ]]; then
+		log warning "No dialog handler detected!"
+	fi
+
 	parse_flags "$@"
 
 	export WINEPREFIX="${DEFAULT_PREFIX_LOCATION}"
@@ -636,11 +725,13 @@ main() {
 		if [[ "$cmd" == 'init' ]]; then
 			prepare_wineprefix
 			exit
+		elif [[ "$TERM" == 'dumb' ]]; then
+			prepare_wineprefix
+		else
+			log error "Wineprefix has not been initialized"
+			echo -e "Run \033[1m$(basename -- $0) init\033[0m to initialize the prefix"
+			exit 1
 		fi
-
-		log error "Wineprefix has not been initialized"
-		echo -e "Run \033[1m$(basename -- $0) init\033[0m to initialize the prefix"
-		exit 1
 	fi
 
 	if [[ -n "$cmd" ]]; then # If $cmd is set, run something here
@@ -654,8 +745,23 @@ main() {
 	else # Run the game.
 		launcher="$(get_launcher_for_game)"
 		if [[ -z "$launcher" ]]; then
-			log error "$(get_title) is not installed. Running installer..."
-			install_game
+			log error "$(get_title) is not installed"
+			if [[ "$TERM" == 'dumb' && -x "${ZENITY}" ]]; then
+				# Ask the user if they want to install the game
+				"${ZENITY}" --question \
+					--title "Not Installed" \
+					--width 400 \
+					--text "$(get_title) is not installed. Would you like to install it?" 2>/dev/null
+
+				if [[ $? -eq 0 ]]; then
+					install_game
+				else
+					exit 1
+				fi
+			else
+				# Run the installer anyways
+				install_game
+			fi
 		fi
 
 		# If there's no launch URI, open the webpage for the specified game
