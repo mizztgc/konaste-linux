@@ -105,7 +105,7 @@ else
 	fi
 fi
 
-if [[ ! -d icon ]]; then
+if [[ ! -d src/icon ]]; then
 	echo -e "\033[38;5;11mwarn:\033[0m Local icon directory not found!"
 	noIcons=1
 fi
@@ -135,6 +135,7 @@ for g in "${toInstall[@]}"; do
 			iconMimeName='x-scheme-handler-bm2dxinf.png'
 			mimeName='x-scheme-handler-bm2dxinf.xml'
 			desktopName='infinitas.desktop'
+			scriptName='infinitas'
 			iconSizes=( 16 32 64 128 256 )
 			;;
 		sdvx)
@@ -142,13 +143,15 @@ for g in "${toInstall[@]}"; do
 			iconMimeName='x-scheme-handler-konaste.sdvx.png'
 			mimeName='x-scheme-handler-konaste.sdvx.xml'
 			desktopName='sdvx-exceedgear.desktop'
+			scriptName='sdvx-exceedgear'
 			iconSizes=( 16 32 64 128 256 )
 			;;
 		ddr)
-			iconAppsName='ddr-gp.png'
+			iconAppsName='ddr-grandprix.png'
 			iconMimeName='x-scheme-handler-konaste.ddr.png'
 			mimeName='x-scheme-handler-konaste.ddr.xml'
 			desktopName='ddr-grandprix.desktop'
+			scriptName='ddr-grandprix'
 			iconSizes=( 16 24 32 48 64 128 256 )
 			;;
 		gitadora)
@@ -156,6 +159,7 @@ for g in "${toInstall[@]}"; do
 			iconMimeName='x-scheme-handler-konaste.gitadora.png'
 			mimeName='x-scheme-handler-konaste.gitadora.xml'
 			desktopName='gitadora.desktop'
+			scriptName='gitadora'
 			iconSizes=( 16 24 32 48 64 128 256 )
 			;;
 		nostalgia)
@@ -163,13 +167,15 @@ for g in "${toInstall[@]}"; do
 			iconMimeName='x-scheme-handler-konaste.nostalgia.png'
 			mimeName='x-scheme-handler-konaste.nostalgia.xml'
 			desktopName='nostalgia.desktop'
+			scriptName='nostalgia'
 			iconSizes=( 16 32 64 128 256 )
 			;;
 		popn)
-			iconAppsName='popn-music.png'
+			iconAppsName='popn-lively.png'
 			iconMimeName='x-scheme-handler-konaste.popn-music.png'
 			mimeName='x-scheme-handler-konaste.popn-music.xml'
-			desktopName='popn-music.desktop'
+			desktopName='popn-lively.desktop'
+			scriptName='popn-lively'
 			iconSizes=( 16 32 64 128 256 )
 			;;
 		bombergirl)
@@ -177,6 +183,7 @@ for g in "${toInstall[@]}"; do
 			iconMimeName='x-scheme-handler-konaste.bomber-girl.png'
 			mimeName='x-scheme-handler-konaste.bomber-girl.xml'
 			desktopName='bombergirl.desktop'
+			scriptName='bombergirl'
 			iconSizes=( 16 32 64 128 256 )
 			;;
 	esac
@@ -186,26 +193,29 @@ for g in "${toInstall[@]}"; do
 	# I'm unsure if I can add the icons to the GitHub repo, so if you just cloned
 	# the repository, then the icon directory will not be found.
 	[[ "$noIcons" -ne 1 ]] && for i in "${iconSizes[@]}"; do
-		install -Dm644 icon/"${i}"x"${i}"/"$iconAppsName" "${iconDir}/${i}x${i}/apps/${iconAppsName}"
-		install -Dm644 icon/"${i}"x"${i}"/"$iconAppsName" "${iconDir}/${i}x${i}/mimetypes/${iconMimeName}"
+		install -Dm644 src/icon/"${i}"x"${i}"/"$iconAppsName" "${iconDir}/${i}x${i}/apps/${iconAppsName}"
+		install -Dm644 src/icon/"${i}"x"${i}"/"$iconAppsName" "${iconDir}/${i}x${i}/mimetypes/${iconMimeName}"
 	done
 	unset i iconAppsName iconMimeName
 
-	install -Dm644 uri/"${mimeName}" "${mimeDir}/packages/${mimeName}"
+	install -Dm644 src/uri/"${mimeName}" "${mimeDir}/packages/${mimeName}"
 	# If running as a local user, change the Exec line in the desktop files to the
 	# value of $binDir.
 	# If there's a better way of doing this, I'd like to know.
-	[[ $(id -u) -ne 0 ]] && sed -i 's:^Exec=konaste:Exec='"${binDir}"'/konaste:' apps/"${desktopName}"
-	install -Dm644 apps/"${desktopName}" "${appDir}/${desktopName}"
+	[[ $(id -u) -ne 0 ]] && sed -i 's:^Exec=konaste:Exec='"${binDir}"'/konaste:' src/apps/"${desktopName}"
+	install -Dm644 src/apps/"${desktopName}" "${appDir}/${desktopName}"
 	unset desktopName mimeName
 
 	# Copy the man pages
 	[[ -f man/${g}.6 ]] && install -Dm644 man/${g}.6 "${manDir}/man6/${g}.6"
+
+	# And finally, the small launch script for the game.
+	install -Dm755 src/bin/"${scriptName}" "${binDir}/${scriptName}"
 done
 
 # Install the script and its man page
-[[ ! -e "${binDir}/konaste" ]] && install -Dm755 bin/konaste "${binDir}/konaste"
-install -Dm644 man/konaste.1 "${manDir}/man1/konaste.1"
+[[ ! -e "${binDir}/konaste" ]] && install -Dm755 src/bin/konaste "${binDir}/konaste"
+install -Dm644 src/man/konaste.1 "${manDir}/man1/konaste.1"
 
 if [[ "$noRefresh" -ne 1 ]]; then
 	update-desktop-database "${appDir}"
