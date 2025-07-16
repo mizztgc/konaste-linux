@@ -47,9 +47,7 @@ This script requires the following dependencies: (**NOTE:** The dependency names
 
 ### OPTIONAL DEPENDENCIES:
 
-* **gamemode** (to run a specified game with improved performance)
-* **gamescope** (to run a specified game within a microcompositor to workaround some display quirks)
-* **mangohud** (to show performance stats while playing)
+* **zenity** (for showing dialog boxes)
 * **msitools** (for silent install via `--silent`)
 
 ## HOW TO INSTALL:
