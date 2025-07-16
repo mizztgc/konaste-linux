@@ -455,7 +455,7 @@ prepare_wineprefix() {
 		"${WINEBOOT}" -u 2>/dev/null
 	fi
 
-	DXVK_LINK="https://github.com/doitsujin/dxvk/releases/download/v2.6.2/dxvk-2.6.2.tar.gz"
+	DXVK_LINK="https://github.com/doitsujin/dxvk/releases/download/v2.7/dxvk-2.7.tar.gz"
 	VCR2010_LINK="https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe"
 
 	# Add the fonts so Japanese/Chinese characters render properly
