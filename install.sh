@@ -7,7 +7,8 @@ cd "$(dirname -- $(realpath -- $0))"
 [[ $# -gt 0 ]] && while [[ $# -gt 0 ]]; do
 	case "$1" in
 		-h|--help|help) show_help=1 ;;
-		-u|--uninstall) uninstall=1 ;;
+		-u|--uninstall) uninstall=1 ;; # i still haven't implemented this lmao
+		-s|--init-prefix) initPrefix=1 ;;
 		-I|--no-icons) noIcons=1 ;;
 		-R|--no-refresh) noRefresh=1 ;;
 		-p|--prefix) shift; pfx="$(realpath -- $1)" ;;
@@ -60,14 +61,13 @@ cat <<EOF
 Konaste Linux - install.sh Help:
 
   -g|--games        Declare what games to install
-                    (This installs ALL games if this flag is not provided)
+                    (This installs ALL games by default if not specified)
   -h|--help         Show this message
   -I|--no-icons     Do not include icons
-  -R|--no-refresh   Do not refresh the .desktop and Mime databases
+  -R|--no-refresh   Do not refresh the .desktop and MimeType databases
   -p|--prefix       Installs all files to a certain directory
-                    Will default to either:
-                    - ~/.local (if ran as local user)
-                    - /usr (if ran as root/sudo)
+  -s|--init-prefix  Initializes the Wineprefix after installation
+  -u|--uninstall    Uninstalls Konaste Linux
 
 Multiple games can be specified for installation, separated by commas (,).
 example: ./install.sh -g 'iidx,sdvx'
@@ -227,5 +227,11 @@ else
 fi
 
 echo 'Done.'
-[[ ! $(command -v konaste) ]] && echo -e "\033[38;5;10mtip:\033[0m Add ${binDir} to your PATH environment variable for easy access to the Konaste script!"
+if [[ ! $(command -v konaste) ]]; then
+	echo -e "\033[38;5;10mtip:\033[0m Add ${binDir} to your PATH environment variable for easy access to the Konaste script!"
+else
+	if [[ $initPrefix -eq 1 ]]; then
+		"$(command -v konaste)" init; exit $?
+	fi
+fi
 exit 0
