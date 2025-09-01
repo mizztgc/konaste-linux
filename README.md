@@ -1,4 +1,5 @@
 # Konaste Linux
+
 An unofficial method of playing KONAMI Amusement Game Station (Konaste/コナステ) games on Linux, written in Bash
 
 ## DISCLAIMER:
@@ -19,15 +20,23 @@ This script is intended to be a simpler way of managing, installing, and playing
 
 The following games are supported via Konaste Linux:
 
-* beatmania IIDX INFINITAS (`iidx`)
+* **beatmania IIDX INFINITAS** (`iidx`)
+  * Songs from ROOTAGE - EPOLIS, including some CANNON BALLERS and Rootage songs use a new audio container that cause audio issues under Wine.
+  * Users on Wayland will need to **manually adjust their refresh rate** to 60Hz (or 120Hz if supported by the display), otherwise the game will throw out a **5-1501-0003** error.
+  * Some songs that use overlays instead of regular movies may crash the game.
 * SOUND VOLTEX EXCEED GEAR コナステ (`sdvx`)
-* DanceDanceRevolution GRAND PRIX (`ddr`)
-* GITADORA コナステ (`gitadora`)
-* ノスタルジア (`nostalgia`)
-* pop'n music Lively (`popn`)
-* ボンバーガール (`bombergirl`)
-
-**NOTE:** I have only tested IIDX INFINITAS, SOUND VOLTEX, and Bomber Girl.
+  * Using DirectSound for audio will cause major distortion. Stick to WASAPI (Shared Mode).
+  * **DO NOT ENABLE** low latency mode, as the game will throw an error.
+* **DanceDanceRevolution GRAND PRIX** (`ddr`)
+  * **NOT TESTED!**
+* **GITADORA コナステ** (`gitadora`)
+  * **NOT TESTED!**
+* **ノスタルジア** (`nostalgia`)
+  * **NOT TESTED!**
+* **pop'n music Lively** (`popn`)
+  * **NOT TESTED!**
+* **ボンバーガール** (`bombergirl`)
+  * Works great!
 
 ## DEPENDENCIES:
 
@@ -51,31 +60,42 @@ This script requires the following dependencies: (**NOTE:** The dependency names
 * **msitools** (for silent install via `--silent`)
 
 ## HOW TO INSTALL:
+
 ### Arch Linux-based Distros (EndeavourOS, Manjaro, etc.)
 
 Konaste Linux can be installed from the [Arch User Repository](https://aur.archlinux.org/packages/konaste-linux). Using an AUR helper such as `paru`, run the following command:
+
 ```
 paru -S konaste-linux
 ```
+
 ### Other Distributions
+
 Download the latest archive from [Releases](https://github.com/mizztgc/konaste-linux/releases) and run `install.sh`
 
 ## KNOWN ISSUES
+
 Due to the nature of Linux (and Wine), you may encounter issues that aren't present on Windows. Many of the issues listed were related to beatmania IIDX INFINITAS, but other Konaste games may also exhibit these issues:
 
 ### The launcher's settings menu doesn't open
+
 Your Wineprefix is missing `wine-mono`. Install it from your distribution's package manager, or click "install" when prompted if using a custom build. If `wine-mono` is not available from your distribution's package manager, you must install it manually. See [this page](https://gitlab.winehq.org/wine/wine/-/wikis/Wine-Mono) for instructions on how to do so.
 
 ### Black screen when the game launches
+
 If you launch the game and you've been stuck on a black screen for a while, try alt-tabbing to see if there's an error message hidden behind the game window. This error message is supposed to indicate that the game couldn't find a suitable audio device and must close. The cause for this issue is due to your WASAPI audio mode set to 排他モード (Exclusive mode), which Wine does not support, but it can be fixed by setting it to 共有モード (Shared mode).
 
 ### No sound, despite the loopback device running
+
 Check to see if the loopback device is muted.
 
 ### The game crashes after the KONAMI/e-amusement/BEMANI splash screens
+
 This issue is caused by gstreamer not having access to any H.264 plugins on your system. If you run Ubuntu or any of its derivatives like Linux Mint, make sure you install the third-party multimedia codecs if you didn't do so when first installing your OS.
 
 ***
+
 # Special thanks
+
 * [This Reddit thread](https://www.reddit.com/r/bemani/comments/yardc2/anyone_run_their_konasute_infinitas_sdvx_etc/) [(this comment specifically)](https://www.reddit.com/r/bemani/comments/yardc2/comment/ke5z7mi/)
 * [Bombergirl on Linux](https://rentry.org/bombergirl-linux) guide
