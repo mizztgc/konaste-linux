@@ -24,7 +24,7 @@ The following games are supported via Konaste Linux:
   * Songs from ROOTAGE - EPOLIS, including some CANNON BALLERS and Rootage songs use a new audio container that cause audio issues under Wine.
   * Users on Wayland will need to **manually adjust their refresh rate** to 60Hz (or 120Hz if supported by the display), otherwise the game will throw out a **5-1501-0003** error.
   * Some songs that use overlays instead of regular movies may crash the game.
-* SOUND VOLTEX EXCEED GEAR コナステ (`sdvx`)
+* **SOUND VOLTEX EXCEED GEAR コナステ** (`sdvx`)
   * Using DirectSound for audio will cause major distortion. Stick to WASAPI (Shared Mode).
   * **DO NOT ENABLE** low latency mode, as the game will throw an error.
 * **DanceDanceRevolution GRAND PRIX** (`ddr`)
