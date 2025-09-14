@@ -73,6 +73,8 @@ paru -S konaste-linux
 
 Download the latest archive from [Releases](https://github.com/mizztgc/konaste-linux/releases) and run `install.sh`
 
+**SteamOS is NOT supported at this time.**
+
 ## KNOWN ISSUES
 
 Due to the nature of Linux (and Wine), you may encounter issues that aren't present on Windows. Many of the issues listed were related to beatmania IIDX INFINITAS, but other Konaste games may also exhibit these issues:
@@ -91,7 +93,11 @@ Check to see if the loopback device is muted.
 
 ### The game crashes after the KONAMI/e-amusement/BEMANI splash screens
 
-This issue is caused by gstreamer not having access to any H.264 plugins on your system. If you run Ubuntu or any of its derivatives like Linux Mint, make sure you install the third-party multimedia codecs if you didn't do so when first installing your OS.
+This issue is caused by gstreamer not having access to any H.264 plugins on your system. If you run Ubuntu or any of its derivatives like Linux Mint, make sure you install the third-party multimedia codecs if you didn't do so when first installing your OS. Alternatively, you can force Wine to use ffmpeg instead of gstreamer by running the following (Wine >=10.0 only):
+
+`WINEPREFIX=$HOME/.local/share/konaste wine reg add 'HKCU\SOFTWARE\Wine\MediaFoundation' /v 'DisableGstByteStreamHandler' /t 'REG_DWORD' /d 1 /f '/reg:64`
+
+Do keep in mind that some BGAs may not render due to the missing aforementioned H.264 codec.
 
 ***
 
