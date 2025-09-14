@@ -1,6 +1,6 @@
 # Konaste Linux
 
-An unofficial method of playing KONAMI Amusement Game Station (Konaste/コナステ) games on Linux, written in Bash
+An unofficial script for playing KONAMI Amusement Game Station (Konaste/コナステ) games on Linux-based operating systems using Wine, written in Bash
 
 ## DISCLAIMER:
 
@@ -8,13 +8,13 @@ This script is in no way affiliated with, endorsed, nor supported by KONAMI Amus
 
 Due to Wine's nature, some games may exhibit severe issues not present on Windows. This script ***only*** does the bare minimum to get these games working on Linux.
 
-I would also like to point out that I am by no means a professional coder, and there may be some significant errors within my code. *You have been warned.*
+I would also like to point out that I am by no means a professional coder, and there may be some significant errors within my code.
 
 ## WHAT DOES THIS SCRIPT DO?
 
 This script is intended to be a simpler way of managing, installing, and playing Konaste games on Linux, using Wine. Unlike many Wine-related programs/scripts, this script does not have many features that power users would enjoy, such as choosing the location of the prefix, using third-party Wine builds, etc.
 
-**This script does NOT work with the Flatpak version of Wine as of right now. This might be a deal breaker for those on stable/immutable distros like Debian and SteamOS.**
+**This script does NOT work with the Flatpak version of Wine as of right now.**
 
 ## WHAT GAMES ARE SUPPORTED?
 
