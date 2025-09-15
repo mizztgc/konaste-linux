@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION='0.2.2'
+VERSION='0.2.3'
 #
 # Konaste Linux: A Bash script for installing and playing KONAMI Amusement Game
 # Station (Konaste) games on Linux-based operating systems, using Wine.
@@ -116,7 +116,7 @@ parse_flags() {
 				echo "${VERSION}"
 				exit
 				;;
-			list) declare -gr cmd='list' 2>/dev/null ;;
+			#list) declare -gr cmd='list' 2>/dev/null ;;
 			init) declare -gr cmd='init' 2>/dev/null ;;
 			iidx|sdvx|ddr|gitadora|nostalgia|popn|bombergirl) [[ -z "$toPlay" ]] && toPlay="$1" ;;
 			# Now we get to the good part
@@ -427,22 +427,22 @@ function get_game_information() {
 ####################################################################################################
 ####################################################################################################
 ####################################################################################################
-
-list_games() {
-	get() {
-		toPlay="$1"
-		[[ -n "$(get_launcher_for_game)" ]] && echo "$toPlay"
-	}
-
-	get 'iidx'
-	get 'sdvx'
-	get 'ddr'
-	get 'gitadora'
-	get 'popn'
-	get 'nostalgia'
-	get 'bombergirl'
-	exit 0
-}
+#
+# list_games() {
+# 	get() {
+# 		toPlay="$1"
+# 		[[ -n "$(get_launcher_for_game)" ]] && echo "$toPlay"
+# 	}
+#
+# 	get 'iidx'
+# 	get 'sdvx'
+# 	get 'ddr'
+# 	get 'gitadora'
+# 	get 'popn'
+# 	get 'nostalgia'
+# 	get 'bombergirl'
+# 	exit 0
+# }
 
 prepare_wineprefix() {
 	# Create the Wineprefix if it does not exist
@@ -455,7 +455,7 @@ prepare_wineprefix() {
 		"${WINEBOOT}" -u 2>/dev/null
 	fi
 
-	DXVK_LINK="https://github.com/doitsujin/dxvk/releases/download/v2.7/dxvk-2.7.tar.gz"
+	DXVK_LINK="https://github.com/doitsujin/dxvk/releases/download/v2.7.1/dxvk-2.7.1.tar.gz"
 	VCR2010_LINK="https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe"
 
 	# Add the fonts so Japanese/Chinese characters render properly
@@ -512,7 +512,16 @@ prepare_wineprefix() {
 	"${WGET}" -t 3 -O "${WINEPREFIX}/drive_c/$(basename -- $DXVK_LINK)" "$DXVK_LINK"
 	if [[ $? -ne 0 ]]; then
 		log error "Failed to install DXVK!"
-		exit 5
+		"${ZENITY}" --question \
+			--title "Failed to download DXVK" \
+			--width 300 \
+			--text "Konaste Linux was unable to download and install DXVK. Do you want to continue without it? (NOT RECOMMENDED!)" 2>/dev/null
+
+		if [[ $? -ne 0 ]]; then
+			exit 5
+		fi
+
+		log warning "Continuing without DXVK!"
 	else
 		log info "Extracting DXVK archive..." >&2
 		tar -xf dxvk-*.tar.gz
@@ -733,7 +742,17 @@ main() {
 			prepare_wineprefix
 			exit
 		elif [[ "$TERM" == 'dumb' ]]; then
-			prepare_wineprefix
+			if [[ -x "${ZENITY}" ]]; then
+				"${ZENITY}" --question \
+					--width 300 \
+					--title "No Wineprefix Found" \
+					--text "In order to use Konaste Linux, a Wineprefix must be created. Do you want to create one now?" 2>/dev/null
+				if [[ $? -eq 0 ]]; then
+					prepare_wineprefix
+				else
+					exit 1
+				fi
+			fi
 		else
 			log error "Wineprefix has not been initialized"
 			echo -e "Run \033[1m$(basename -- $0) init\033[0m to initialize the prefix"
@@ -744,7 +763,7 @@ main() {
 	if [[ -n "$cmd" ]]; then # If $cmd is set, run something here
 		case "$cmd" in
 			init) prepare_wineprefix ;;
-			list) list_games ;;
+			#list) list_games ;;
 			*) ;;
 		esac
 
