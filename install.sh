@@ -202,7 +202,8 @@ for g in "${toInstall[@]}"; do
 	# If running as a local user, change the Exec line in the desktop files to the
 	# value of $binDir.
 	# If there's a better way of doing this, I'd like to know.
-	[[ $(id -u) -ne 0 ]] && sed -i 's:^Exec=konaste:Exec='"${binDir}"'/konaste:' src/apps/"${desktopName}"
+	#[[ $(id -u) -ne 0 ]] && sed -i 's:^Exec=konaste:Exec='"${binDir}"'/konaste:' src/apps/"${desktopName}"
+	[[ $(id -u) -ne 0 ]] && sed -i 's:^Exec=:Exec='"${binDir}"'/konaste:' src/apps/"${desktopName}"
 	install -Dm644 src/apps/"${desktopName}" "${appDir}/${desktopName}"
 	unset desktopName mimeName
 
