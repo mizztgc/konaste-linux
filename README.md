@@ -2,19 +2,16 @@
 
 An unofficial script for playing KONAMI Amusement Game Station (Konaste/コナステ) games on Linux-based operating systems using Wine, written in Bash
 
-## DISCLAIMER:
-
-This script is in no way affiliated with, endorsed, nor supported by KONAMI Arcade Games. All games require a KONAMI ID to play, and most games require a subscription to their respective basic course subscriptions in order to access their full versions. This script will NOT allow you to gain access to things you aren't paying for, nor will the script developer assist you with such actions. *Play at your own risk.*
-
-Due to Wine's nature, some games may exhibit severe issues not present on Windows. This script ***only*** does the bare minimum to get these games working on Linux.
-
-I would also like to point out that I am by no means a professional coder, and there may be some significant errors within my code.
+> [!IMPORTANT]
+> This script is in no way affiliated with, endorsed, nor supported by KONAMI Arcade Games. All games require a KONAMI ID to play, and most games require a subscription to their respective basic course subscriptions in order to access their full versions. This script will NOT allow you to gain access to things you aren't paying for, nor will the script developer assist you with such actions. *Play at your own risk.*
+>
+>Due to Wine's nature, some games may exhibit severe issues not present on Windows. This script ***only*** does the bare minimum to get these games working on Linux.
+>
+> I would also like to point out that I am by no means a professional coder, and there may be some significant errors within my code.
 
 ## WHAT DOES THIS SCRIPT DO?
 
 This script is intended to be a simpler way of managing, installing, and playing Konaste games on Linux, using Wine. Unlike many Wine-related programs/scripts, this script does not have many features that power users would enjoy, such as choosing the location of the prefix, using third-party Wine builds, etc.
-
-**This script does NOT work with the Flatpak version of Wine as of right now.**
 
 ## WHAT GAMES ARE SUPPORTED?
 
@@ -41,9 +38,10 @@ The following games are supported via Konaste Linux:
 
 ## DEPENDENCIES:
 
-This script requires the following dependencies:
+> [!NOTE]
+> The dependency names listed here are their associated packages on **Arch Linux**. Check your distribution's package repositories for the appropriate package(s).
 
-> **NOTE:** The dependency names listed here are their associated packages on **Arch Linux**. Check your distribution's package repositories for the appropriate package(s).
+Konaste Linux requires the following dependencies:
 
 * **Web browser of your choice** (needed to launch the games)
 * **wine>=9.0** (self-explanatory.)
@@ -74,7 +72,8 @@ paru -S konaste-linux
 
 ### Other Distributions
 
-> **NOTE:** SteamOS is NOT supported at this time. While it may work, don't expect much.
+> [!WARNING]
+> SteamOS is NOT supported at this time. While it may work, don't expect much.
 
 Download the latest archive from [Releases](https://github.com/mizztgc/konaste-linux/releases) and run `install.sh`
 
