@@ -4,7 +4,7 @@ An unofficial script for playing KONAMI Amusement Game Station (Konaste/コナ�
 
 ## DISCLAIMER:
 
-This script is in no way affiliated with, endorsed, nor supported by KONAMI Amusement. All games require a KONAMI ID to play, and most games require a subscription to their respective basic course subscriptions in order to access their full versions. This script will NOT allow you to gain access to things you aren't paying for, nor will the script developer assist you with such actions. *Play at your own risk.*
+This script is in no way affiliated with, endorsed, nor supported by KONAMI Arcade Games. All games require a KONAMI ID to play, and most games require a subscription to their respective basic course subscriptions in order to access their full versions. This script will NOT allow you to gain access to things you aren't paying for, nor will the script developer assist you with such actions. *Play at your own risk.*
 
 Due to Wine's nature, some games may exhibit severe issues not present on Windows. This script ***only*** does the bare minimum to get these games working on Linux.
 
@@ -21,11 +21,12 @@ This script is intended to be a simpler way of managing, installing, and playing
 The following games are supported via Konaste Linux:
 
 * **beatmania IIDX INFINITAS** (`iidx`)
-  * Songs from ROOTAGE - EPOLIS, including some CANNON BALLERS and Rootage songs use a new audio container that cause audio issues under Wine.
-  * Users on Wayland will need to **manually adjust their refresh rate** to 60Hz (or 120Hz if supported by the display), otherwise the game will throw out a **5-1501-0003** error.
+  * Songs from ROOTAGE - EPOLIS, including some CANNON BALLERS and Rootage songs use a new WMA-based audio container that cause audio issues under Wine.
+    * A fix for this problem is to use a [custom build of Proton-GE that includes a patch for the WMA containers](https://github.com/atty303/proton-ge-custom). It may not be perfect, but it at least makes the newer songs playable.
+  * Users on Wayland will need to **manually adjust their refresh rate** to 60Hz (or 120Hz if supported by the display), otherwise the game will either throw out a **5-1501-0003** error, or will be locked to 60 FPS (with added latency).
   * Some songs that use overlays instead of regular movies may crash the game.
 * **SOUND VOLTEX EXCEED GEAR コナステ** (`sdvx`)
-  * Using DirectSound for audio will cause major distortion. Stick to WASAPI (Shared Mode).
+  * Using DirectSound for audio will cause **major distortion**. Stick to WASAPI (Shared Mode).
   * **DO NOT ENABLE** low latency mode, as the game will throw an error.
 * **DanceDanceRevolution GRAND PRIX** (`ddr`)
   * **NOT TESTED!**
@@ -36,13 +37,15 @@ The following games are supported via Konaste Linux:
 * **pop'n music Lively** (`popn`)
   * **NOT TESTED!**
 * **ボンバーガール** (`bombergirl`)
-  * Works great!
+  * Works great! (It literally runs on Unity.)
 
 ## DEPENDENCIES:
 
-This script requires the following dependencies: (**NOTE:** The dependency names listed here are their associated packages on Arch Linux. Your distribution may have these packages labeled differently, or may have the required dependencies separated in other packages.)
+This script requires the following dependencies:
 
-* **Web browser of your choice** (Firefox, Chrome, etc.)
+> **NOTE:** The dependency names listed here are their associated packages on **Arch Linux**. Check your distribution's package repositories for the appropriate package(s).
+
+* **Web browser of your choice** (needed to launch the games)
 * **wine>=9.0** (self-explanatory.)
 * **wine-mono** (needed for the launcher's settings menu to function)
   * If your distribution does not have wine-mono packaged, you must install the version of mono that's compatible with your build of Wine. You can learn how [here](https://gitlab.winehq.org/wine/wine/-/wikis/Wine-Mono).
@@ -71,9 +74,9 @@ paru -S konaste-linux
 
 ### Other Distributions
 
-Download the latest archive from [Releases](https://github.com/mizztgc/konaste-linux/releases) and run `install.sh`
+> **NOTE:** SteamOS is NOT supported at this time. While it may work, don't expect much.
 
-**SteamOS is NOT supported at this time.**
+Download the latest archive from [Releases](https://github.com/mizztgc/konaste-linux/releases) and run `install.sh`
 
 ## KNOWN ISSUES
 
