@@ -1,42 +1,40 @@
 # Konaste Linux
 
-An unofficial script for playing KONAMI Amusement Game Station (Konaste/コナステ) games on Linux-based operating systems using Wine, written in Bash
+An unofficial script for playing KONAMI Amusement Game Station (Konaste/コナステ) games on Linux-based operating systems using Wine, written in Bash.
 
 > [!IMPORTANT]
-> This script is in no way affiliated with, endorsed, nor supported by KONAMI Arcade Games. All games require a KONAMI ID to play, and most games require a subscription to their respective basic course subscriptions in order to access their full versions. This script will NOT allow you to gain access to things you aren't paying for, nor will the script developer assist you with such actions. *Play at your own risk.*
->
->Due to Wine's nature, some games may exhibit severe issues not present on Windows. This script ***only*** does the bare minimum to get these games working on Linux.
->
-> I would also like to point out that I am by no means a professional coder, and there may be some significant errors within my code.
+> - This script is in no way affiliated with, endorsed, nor supported by KONAMI Arcade Games (formerly Konami Amusement). All games require a KONAMI ID to play, and most games require a subscription to their respective basic course subscriptions in order to access their full versions. This script will NOT allow you to gain access to things you aren't paying for, nor will the script developer assist you with such actions. *Play at your own risk.*
+> - **私は日本語のネイティブスピーカーではありませんし、日本語もあまり理解できません。英語がわからない場合は機械翻訳を使う必要があるかもしれません。申し訳ありません。**
+> - Due to Wine's nature, some games may exhibit severe issues not present on Windows. This script ***only*** does the bare minimum to get these games working on Linux.
+> - Flatpak is currently not supported at this time. I still need to learn how to package for it...
 
-## WHAT DOES THIS SCRIPT DO?
+Konaste Linux aims to help allow users to install and play some of their favorite Konaste games on Linux using Wine. It also includes some registry fixes and workarounds for some Wine and PipeWire-related quirks respectively.
 
-This script is intended to be a simpler way of managing, installing, and playing Konaste games on Linux, using Wine. Unlike many Wine-related programs/scripts, this script does not have many features that power users would enjoy, such as choosing the location of the prefix, using third-party Wine builds, etc.
-
-## WHAT GAMES ARE SUPPORTED?
+## SUPPORTED GAMES
 
 The following games are supported via Konaste Linux:
 
-* **beatmania IIDX INFINITAS** (`iidx`)
-  * Songs from ROOTAGE - EPOLIS, including some CANNON BALLERS and Rootage songs use a new WMA-based audio container that cause audio issues under Wine.
-    * A fix for this problem is to use a [custom build of Proton-GE that includes a patch for the WMA containers](https://github.com/atty303/proton-ge-custom). It may not be perfect, but it at least makes the newer songs playable.
-  * Users on Wayland will need to **manually adjust their refresh rate** to 60Hz (or 120Hz if supported by the display), otherwise the game will either throw out a **5-1501-0003** error, or will be locked to 60 FPS (with added latency).
-  * Some songs that use overlays instead of regular movies may crash the game.
-* **SOUND VOLTEX EXCEED GEAR コナステ** (`sdvx`)
-  * Using DirectSound for audio will cause **major distortion**. Stick to WASAPI (Shared Mode).
-  * **DO NOT ENABLE** low latency mode, as the game will throw an error.
-* **DanceDanceRevolution GRAND PRIX** (`ddr`)
-  * **NOT TESTED!**
-* **GITADORA コナステ** (`gitadora`)
-  * **NOT TESTED!**
-* **ノスタルジア** (`nostalgia`)
-  * **NOT TESTED!**
-* **pop'n music Lively** (`popn`)
-  * **NOT TESTED!**
-* **ボンバーガール** (`bombergirl`)
-  * Works great! (It literally runs on Unity.)
+- **beatmania IIDX INFINITAS** (`iidx`)
+  - Songs from ROOTAGE - EPOLIS, including some CANNON BALLERS and Rootage songs use a new WMA-based audio container that cause audio issues under Wine.
+    - [This has been confirmed to be a gstreamer-related issue](https://www.youtube.com/watch?v=LPJbRCu4_g8), and a patch for the WMA decoding is required for a (mostly) playable experience.
+    - [This custom build of proton-ge-custom](https://github.com/atty303/proton-ge-custom) includes the patch for the WMA decoding. It's not perfect, but it is more tolerable than playing with the upstream release of gstreamer.
+  - Users on Wayland will need to **manually adjust their refresh rate** to 60Hz (or 120Hz if supported by the display), otherwise the game will either throw out a **5-1501-0003** error, or will be locked to 60 FPS (with added latency).
+  - Some songs that use overlays instead of regular movies may crash the game.
+- **SOUND VOLTEX EXCEED GEAR コナステ** (`sdvx`)
+  - Using DirectSound for audio will cause **major distortion**. Stick to WASAPI (Shared Mode).
+  - **DO NOT ENABLE** low latency mode, as the game will throw an error.
+- **DanceDanceRevolution GRAND PRIX** (`ddr`)
+  - **NOT TESTED!**
+- **GITADORA コナステ** (`gitadora`)
+  - **NOT TESTED!**
+- **ノスタルジア** (`nostalgia`)
+  - **NOT TESTED!**
+- **pop'n music Lively** (`popn`)
+  - **NOT TESTED!**
+- **ボンバーガール** (`bombergirl`)
+  - Works great! (It literally runs on Unity.)
 
-## DEPENDENCIES:
+## DEPENDENCIES
 
 > [!NOTE]
 > The dependency names listed here are their associated packages on **Arch Linux**. Check your distribution's package repositories for the appropriate package(s).
