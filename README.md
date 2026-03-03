@@ -49,6 +49,8 @@ Konaste Linux requires the following dependencies:
 * **pipewire-pulse** (for sound)
   * Debian users may need to also install **pulseaudio-utils**
 * **pipewire-audio** (for sound)
+* **gst-libav** (for video decoding)
+* **gst-plugins-ugly** (necessary for decoding WMA containers)
 * **libpulse** (for sound & to determine audio sample rate)
 * **xdg-utils** (to handle the login tokens)
 * **wget** (for downloading the needed windows dependencies and of course, the game installers)
@@ -71,7 +73,7 @@ paru -S konaste-linux
 ### Other Distributions
 
 > [!WARNING]
-> SteamOS is NOT supported at this time. While it may work, don't expect much.
+> SteamOS is not supported. Aside from it not shipping with some necessary codecs by default, any change you make to the base OS will be reverted every update.
 
 Download the latest archive from [Releases](https://github.com/mizztgc/konaste-linux/releases) and run `install.sh`
 
