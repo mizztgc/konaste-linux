@@ -62,7 +62,7 @@ Konaste Linux requires the following dependencies:
 
 ## HOW TO INSTALL:
 
-### Arch Linux-based Distros (EndeavourOS, Manjaro, etc.)
+### Arch Linux-based Distros (EndeavourOS, Manjaro, CachyOS, etc.)
 
 Konaste Linux can be installed from the [Arch User Repository](https://aur.archlinux.org/packages/konaste-linux). Using an AUR helper such as `paru`, run the following command:
 
