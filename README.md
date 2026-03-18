@@ -70,12 +70,16 @@ Konaste Linux can be installed from the [Arch User Repository](https://aur.archl
 paru -S konaste-linux
 ```
 
+Once installed, run `konaste init` to setup the Wineprefix.
+
 ### Other Distributions
 
 > [!WARNING]
 > SteamOS is not supported. Aside from it not shipping with some necessary codecs by default, any change you make to the base OS will be reverted every update.
 
-Download the latest archive from [Releases](https://github.com/mizztgc/konaste-linux/releases) and run `install.sh`
+Download the latest archive from [Releases](https://github.com/mizztgc/konaste-linux/releases) and run `install.sh`.
+
+Once installed, run `konaste init` to setup the Wineprefix.
 
 ## KNOWN ISSUES
 
