@@ -15,7 +15,7 @@ Konaste Linux aims to help allow users to install and play some of their favorit
 The following games are supported via Konaste Linux:
 
 - **beatmania IIDX INFINITAS** (`iidx`)
-  - Songs from ROOTAGE - EPOLIS, including some CANNON BALLERS and Rootage songs use a new WMA-based audio container that cause audio issues under Wine.
+  - Songs from HEROIC VERSE - EPOLIS, including some CANNON BALLERS and Rootage songs use a new WMA-based audio container that cause audio issues under Wine.
     - [This has been confirmed to be a gstreamer-related issue](https://www.youtube.com/watch?v=LPJbRCu4_g8), and a patch for the WMA decoding is required for a (mostly) playable experience.
     - [This custom build of proton-ge-custom](https://github.com/atty303/proton-ge-custom) includes the patch for the WMA decoding. It's not perfect, but it is more tolerable than playing with the upstream release of gstreamer.
   - Users on Wayland will need to **manually adjust their refresh rate** to 60Hz (or 120Hz if supported by the display), otherwise the game will either throw out a **5-1501-0003** error, or will be locked to 60 FPS (with added latency).
