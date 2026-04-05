@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION='0.2.4'
+VERSION='0.2.5'
 #
 # Konaste Linux: A Bash script for installing and playing KONAMI Amusement Game
 # Station (Konaste) games on Linux-based operating systems, using Wine.
@@ -445,6 +445,22 @@ function get_game_information() {
 # }
 
 prepare_wineprefix() {
+	# Check if Wine exists
+	if [[ ! -x "${WINE}" ]]; then
+		log error "wine was not found in PATH. Cannot initialize/update Wineprefix."
+
+		if [[ -x "${ZENITY}" ]]; then
+			NO_WINE_FOUND="Konaste Linux was unable to locate a Wine binary in your PATH. Ensure that the 'wine' package is installed before attempting to initialize/update the Konaste Wineprefix."
+
+			"${ZENITY}" --error \
+				--title "Wine Not Found" \
+				--width 400 \
+				--text "${NO_WINE_FOUND}" 2>/dev/null
+		fi
+
+		exit 1
+	fi
+
 	# Create the Wineprefix if it does not exist
 	if [[ ! -e "${WINEPREFIX}" && ! -f "${WINEPREFIX}/system.reg" ]]; then
 		log info "Wineprefix at ${WINEPREFIX} was not found. Creating one now..." >&2
@@ -557,8 +573,7 @@ prepare_wineprefix() {
 	# Officially introduced in Wine 10.0 to use ffmpeg over gstreamer for Media Foundation libraries.
 	# Currently disabled due to an audio bug in beatmania IIDX INFINITAS involving songs that utilize the new
 	# audio container (some CANNON BALLERS & Rootage songs, and all HEROIC VERSE, BISTROVER, CastHour, and RESIDENT songs).
-	# Uncomment if you want it, but be prepared to hear some lovely static in aforementioned songs.
-	#"${WINE}" reg add 'HKCU\SOFTWARE\Wine\MediaFoundation' /v 'DisableGstByteStreamHandler' /t 'REG_DWORD' /d 1 /f '/reg:64' > /dev/null
+	"${WINE}" reg add 'HKCU\SOFTWARE\Wine\MediaFoundation' /v 'DisableGstByteStreamHandler' /t 'REG_DWORD' /d 0 /f '/reg:64' > /dev/null
 
 	case "${LANG}" in
 		ja*) PREFIX_INIT="Wineprefixは初期化され、コナステで使用できるようになりました" ;;
@@ -643,6 +658,7 @@ install_game() {
 
 	installer="$(get_game_information installer)"
 	dir_title="$(get_game_information dirtitle)"
+	simplename="$(get_game_information simple)" # forgot this LOL
 
 	cd "${WINEPREFIX}/drive_c"
 
@@ -713,6 +729,7 @@ install_game() {
 	fi
 
 	sleep 2
+
 	if [[ -z "${launchUri}" ]]; then
 		log ok "$(get_title) has been successfully installed."
 		[[ "$TERM" == 'dumb' ]] && exec xdg-open "$(get_game_information webpage)"
@@ -731,6 +748,41 @@ main() {
 	if [[ ! -x "${ZENITY}" ]]; then
 		log warning "No dialog handler detected!"
 	fi
+
+	# Checks the version of Wine in use to make sure it's based on 9.0 or later
+	# KONASTE_SKIP_WINE_CHECK=1 ignores this
+	if [[ $KONASTE_SKIP_WINE_CHECK -ne 1 ]]; then
+		local _wineVer=$("${WINE}" --version | grep -Eo '[0-9]{1,}\.[0-9]{1,}')
+
+		if [[ $(cut -d'.' -f1 <<< "${_wineVer}") -lt 9 ]]; then
+			# the konaste games do not launch on builds of wine before 9.0
+			OUTDATED_WINE="Konaste Linux requires a build of Wine based on 9.0 or later."
+			log error "Wine build detected is out of date. Please upgrade your Wine package to 9.0 or later."
+
+			[[ -x "${ZENITY}" ]] && "${ZENITY}" --error \
+				--title "Outdated Wine Build" \
+				--width 350 \
+				--text "${OUTDATED_WINE}" 2>/dev/null
+
+			exit 1
+		elif [[ "${_wineVer}" == '11.5' ]]; then
+			# Wine 11.5 introduced something that breaks the updaters, resulting in them outputting a "ReadErr" error.
+			BROKENWINE11_5="Konaste Linux has detected you are using a build of Wine based on version 11.5. This version of Wine introduces a critical bug that breaks the updater for each Konaste game. If possible, please update your Wine package to the latest version available, or downgrade to 11.4 or earlier."
+			log error "Wine 11.5 detected; aborting"
+			if [[ -x "${ZENITY}" ]]; then
+				"${ZENITY}" --error \
+					--title "Broken Wine Build Detected" \
+					--width 400 \
+					--text "${BROKENWINE11_5}" 2>/dev/null
+					exit 115 # heh
+			fi
+		fi
+	else
+		log warning "KONASTE_SKIP_WINE_CHECK exported; skipping Wine check..."
+	fi
+
+	unset _wineVer
+
 
 	parse_flags "$@"
 
