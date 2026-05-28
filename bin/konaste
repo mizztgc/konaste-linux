@@ -774,8 +774,9 @@ main() {
 					--title "Broken Wine Build Detected" \
 					--width 400 \
 					--text "${BROKENWINE11_5}" 2>/dev/null
-					exit 115 # heh
 			fi
+
+			exit 115 # heh
 		fi
 	else
 		log warning "KONASTE_SKIP_WINE_CHECK exported; skipping Wine check..."
