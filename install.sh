@@ -140,11 +140,11 @@ for g in "${toInstall[@]}"; do
 			iconSizes=( 16 32 64 128 256 )
 			;;
 		sdvx)
-			iconAppsName='sdvx-exceedgear.png'
+			iconAppsName='sdvx.png'
 			iconMimeName='x-scheme-handler-konaste.sdvx.png'
 			mimeName='x-scheme-handler-konaste.sdvx.xml'
-			desktopName='sdvx-exceedgear.desktop'
-			scriptName='sdvx-exceedgear'
+			desktopName='sdvx.desktop'
+			scriptName='sdvx'
 			iconSizes=( 16 32 64 128 256 )
 			;;
 		ddr)
@@ -211,8 +211,12 @@ for g in "${toInstall[@]}"; do
 	# Copy the man pages
 	# [[ -f man/${g}.6 ]] && install -Dm644 man/${g}.6 "${manDir}/man6/${g}.6"
 
-	# And finally, the small launch script for the game.
+	# And finally, the scriplet.
 	install -Dm755 src/bin/"${scriptName}" "${binDir}/${scriptName}"
+	if [[ "$g" == 'sdvx' ]]; then
+		# I'm not sure if KONAMI is going to rebase SDVX Konaste to NABLA, so make a symlink
+		ln -sf sdvx "${binDir}"/sdvx-exceedgear
+	fi
 done
 
 # Install the script and its man page
