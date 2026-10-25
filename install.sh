@@ -78,7 +78,7 @@ fi
 
 # Check if $pfx is filled
 if [[ -z "$pfx" ]]; then
-	if [[ $EUID -eq 0 ]]; then
+	if [[ $(id -u) -eq 0 ]]; then
 		# Install to /usr
 		pfx='/usr'
 	else
@@ -89,16 +89,16 @@ else
 	if [[ ! -e "${pfx}" ]]; then
 		mkdir -p "${pfx}"
 		if [[ $? -ne 0 ]]; then
-			echo -e "\033[38;5;9mERROR:\033[0m Failed to create directories at ${pfx}" >&2
+			echo -e "\033[38;5;9merror:\033[0m Failed to create directories at ${pfx}"
 			exit 1
 		fi
 	else
 		if [[ $(id -u) -ne 0 ]]; then
 			if [[ ! -r "${pfx}" ]]; then
-				echo -e "\033[38;5;9mERROR:\033[0m You do not have permission to read from ${pfx}" >&2
+				echo -e "\033[38;5;9merror:\033[0m You do not have permission to read from ${pfx}"
 				exit 1
 			elif [[ ! -w "${pfx}" ]]; then
-				echo -e "\033[38;5;9mERROR:\033[0m You do not have permission to write to ${pfx}" >&2
+				echo -e "\033[38;5;9merror:\033[0m You do not have permission to write to ${pfx}"
 				exit 1
 			fi
 		fi
@@ -106,7 +106,7 @@ else
 fi
 
 if [[ ! -d src/icon ]]; then
-	echo -e "\033[38;5;11mWARNING:\033[0m Local icon directory not found!" >&2
+	echo -e "\033[38;5;11mwarn:\033[0m Local icon directory not found!"
 	noIcons=1
 fi
 
@@ -128,7 +128,6 @@ mkdir -p "${iconDir}"
 mkdir -p "${mimeDir}"/packages
 mkdir -p "${manDir}"/man{1,6}
 
-
 for g in "${toInstall[@]}"; do
 	case "$g" in
 		iidx)
@@ -140,11 +139,11 @@ for g in "${toInstall[@]}"; do
 			iconSizes=( 16 32 64 128 256 )
 			;;
 		sdvx)
-			iconAppsName='sdvx.png'
+			iconAppsName='sdvx-exceedgear.png'
 			iconMimeName='x-scheme-handler-konaste.sdvx.png'
 			mimeName='x-scheme-handler-konaste.sdvx.xml'
-			desktopName='sdvx.desktop'
-			scriptName='sdvx'
+			desktopName='sdvx-exceedgear.desktop'
+			scriptName='sdvx-exceedgear'
 			iconSizes=( 16 32 64 128 256 )
 			;;
 		ddr)
@@ -189,7 +188,7 @@ for g in "${toInstall[@]}"; do
 			;;
 	esac
 
-	echo "Installing ${g}..." >&2
+	echo "Installing ${g}..."
 	# Install icons (only available in archive)
 	# I'm unsure if I can add the icons to the GitHub repo, so if you just cloned
 	# the repository, then the icon directory will not be found.
@@ -203,20 +202,12 @@ for g in "${toInstall[@]}"; do
 	# If running as a local user, change the Exec line in the desktop files to the
 	# value of $binDir.
 	# If there's a better way of doing this, I'd like to know.
-	#[[ $(id -u) -ne 0 ]] && sed -i 's:^Exec=konaste:Exec='"${binDir}"'/konaste:' src/apps/"${desktopName}"
-	[[ $EUID -ne 0 ]] && sed -i 's:^Exec=:Exec='"${binDir}"'/konaste:' src/apps/"${desktopName}"
+	[[ $(id -u) -ne 0 ]] && sed -i 's:^Exec=:Exec='"${binDir}"'/:' src/apps/"${desktopName}"
 	install -Dm644 src/apps/"${desktopName}" "${appDir}/${desktopName}"
 	unset desktopName mimeName
 
-	# Copy the man pages
-	# [[ -f man/${g}.6 ]] && install -Dm644 man/${g}.6 "${manDir}/man6/${g}.6"
-
-	# And finally, the scriplet.
+	# And finally, the small launch script for the game.
 	install -Dm755 src/bin/"${scriptName}" "${binDir}/${scriptName}"
-	if [[ "$g" == 'sdvx' ]]; then
-		# I'm not sure if KONAMI is going to rebase SDVX Konaste to NABLA, so make a symlink
-		ln -sf sdvx "${binDir}"/sdvx-exceedgear
-	fi
 done
 
 # Install the script and its man page
@@ -229,13 +220,12 @@ if [[ "$noRefresh" -ne 1 ]]; then
 	gtk-update-icon-cache
 	mandb -u 2>/dev/null
 else
-	echo -e "\033[38;5;11mWARN:\033[0m Not updating desktop/mime databases" >&2
+	echo -e "\033[38;5;11mwarn:\033[0m Not updating desktop/mime databases"
 fi
 
-echo 'Done.' >&2
-echo -e "Remember to run \033[1mkonaste init\033[0m before launching any games~" >&2
+echo 'Done.'
 if [[ ! $(command -v konaste) ]]; then
-	echo -e "\033[38;5;10mTIP:\033[0m Add ${binDir} to your PATH environment variable for easy access to the Konaste script!"
+	echo -e "\033[38;5;10mtip:\033[0m Add ${binDir} to your PATH environment variable for easy access to the Konaste script!"
 else
 	if [[ $initPrefix -eq 1 ]]; then
 		"$(command -v konaste)" init; exit $?
