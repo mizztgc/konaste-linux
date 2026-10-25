@@ -30,7 +30,7 @@ The following games are supported via Konaste Linux:
 - **ノスタルジア** (`nostalgia`)
   - **NOT TESTED!**
 - **pop'n music Lively** (`popn`)
-  - **NOT TESTED!**
+  - Works great!
 - **ボンバーガール** (`bombergirl`)
   - Works great! (It literally runs on Unity.)
 
