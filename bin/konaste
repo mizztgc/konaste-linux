@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-VERSION='0.2.5'
+VERSION='0.2.6'
 #
 # Konaste Linux: A Bash script for installing and playing KONAMI Amusement Game
 # Station (Konaste) games on Linux-based operating systems, using Wine.
@@ -20,7 +20,7 @@ VERSION='0.2.5'
 #
 # HOW IT WORKS:
 # 1. User selects game launcher from DE/WM
-# 2. Konaste Linux initializes a Wineprefix, if necessary
+# 2. Konaste Linux initializes a Wine prefix, if necessary
 # 3. Search the prefix's registry for the game's InstallDir key
 # 4. Download and run the game installer, if not installed
 # 5. Open the game's launch page in a browser, if no URI is provided
@@ -37,6 +37,7 @@ PW_LOOPBACK="$(command -v pw-loopback)"
 PACTL="$(command -v pactl)"
 WGET="$(command -v wget)"
 ZENITY="$(command -v zenity)"
+GAMESCOPE="$(command -v gamescope)"
 
 DEFAULT_PREFIX_LOCATION="$HOME/.local/share/konaste"
 
@@ -81,11 +82,14 @@ show_help() {
 	else
 		echo -e "\033[0m\nUsage: $(basename -- $0) <game ID|command> ..."
 		echo -e "\n\033[1mCommands: \033[0m"
-		echo -e "  init  Initialize the Wineprefix"
+		echo -e "  init  Initialize the Wine prefix"
 		echo -e "  list  List installed games"
 		echo -e "  help  Show this message"
 		echo -e "\n\033[1mFlags: \033[0m"
 		echo -e "  --silent            Skip the game installer and use defaults "
+		if [[ -x "${GAMESCOPE}" ]]; then
+			echo -e "  --gamescope         Run through Valve's gamescope compositor"
+		fi
 		echo -e "  --wine-vd           Run through Wine's virtual desktop"
 		echo -e "\n\033[1mThe following flags are experimental and can break things:\033[0m"
 		echo -e "  --disable-dxvk      Use Wine's built-in DirectX libraries instead of DXVK"
@@ -118,6 +122,7 @@ parse_flags() {
 				;;
 			#list) declare -gr cmd='list' 2>/dev/null ;;
 			init) declare -gr cmd='init' 2>/dev/null ;;
+			update) declare -gr cmd='update' 2>/dev/null ;;
 			iidx|sdvx|ddr|gitadora|nostalgia|popn|bombergirl) [[ -z "$toPlay" ]] && toPlay="$1" ;;
 			# Now we get to the good part
 			bm2dxinf://*|konaste.*://*|*://*)
@@ -155,10 +160,10 @@ parse_flags() {
 			--silent) silentInstall=1 ;;
 			# Gameplay flags
 			--wine-vd) useWineVD=1 ;;
+			--gamescope) useGamescope=1 ;;
 			# DANGER flags:
 			--disable-dxvk) noDXVK=1 ;;
 			--disable-loopback) noLoopback=1 ;;
-			--wayland) useWayland=1 ;;
 			# Unknown.
 			--*) log error "Unknown flag: $1" && exit 1 ;;
 			*) log error "Unknown command: $1" && exit 1 ;;
@@ -166,15 +171,6 @@ parse_flags() {
 
 		shift
 	done
-
-	if [[ $useWayland -eq 1 ]]; then
-		if [[ $XDG_SESSION_TYPE	!= 'wayland' ]]; then
-			log warning "Ignoring --wayland on X11..."
-		else
-			log warning "Make sure your build of Wine supports the Wayland driver!"
-			unset DISPLAY # Wine is configured by default to use X11 over Wayland
-		fi
-	fi
 }
 
 ####################################################################################################
@@ -269,20 +265,24 @@ function get_registry_key() {
 	[[ -z "$1" ]] && return 126
 
 	if [[ -z "$2" ]]; then
-		k="$(WINEDEBUG='-all' "${WINE}" reg query "${1}" '/ve' '/reg:64')"
+		local k="$(WINEDEBUG='-all' "${WINE}" reg query "${1}" '/ve' '/reg:64')"
 	else
-		k="$(WINEDEBUG='-all' "${WINE}" reg query "${1}" '/v' "${2}" '/reg:64')"
+		local k="$(WINEDEBUG='-all' "${WINE}" reg query "${1}" '/v' "${2}" '/reg:64')"
 	fi
 
 	if [[ $? -ne 0 ]]; then
 		return 1
 	fi
 
-	k="$(echo "${k}" | tr -dc '[:print:]' | sed 's:\ \ \ \ :\n:g' | tail -n+4)"
+	local _k=$(grep -Eo 'REG_SZ|REG_DWORD' <<< "${k}" | sed 's:REG_::')
+	local k="$(echo "${k}" | tr -dc '[:print:]' | sed 's:\ \ \ \ :\n:g' | tail -n+4)"
 	if [[ "$k" == '(value not set)' ]]; then
-		echo ""
+		echo "(value not set)"
 	else
-		echo "${k}"
+		case "$_k" in
+            [DQ]WORD) printf '%d' "${k}" ;;
+            SZ|*) printf '%s' "${k}" ;;
+		esac
 	fi
 
 	return 0
@@ -427,52 +427,66 @@ function get_game_information() {
 ####################################################################################################
 ####################################################################################################
 ####################################################################################################
-#
-# list_games() {
-# 	get() {
-# 		toPlay="$1"
-# 		[[ -n "$(get_launcher_for_game)" ]] && echo "$toPlay"
-# 	}
-#
-# 	get 'iidx'
-# 	get 'sdvx'
-# 	get 'ddr'
-# 	get 'gitadora'
-# 	get 'popn'
-# 	get 'nostalgia'
-# 	get 'bombergirl'
-# 	exit 0
-# }
 
 prepare_wineprefix() {
 	# Check if Wine exists
 	if [[ ! -x "${WINE}" ]]; then
-		log error "wine was not found in PATH. Cannot initialize/update Wineprefix."
+		log error "wine was not found in PATH. Cannot initialize/update Wine prefix."
 
-		if [[ -x "${ZENITY}" ]]; then
-			NO_WINE_FOUND="Konaste Linux was unable to locate a Wine binary in your PATH. Ensure that the 'wine' package is installed before attempting to initialize/update the Konaste Wineprefix."
-
-			"${ZENITY}" --error \
-				--title "Wine Not Found" \
-				--width 400 \
-				--text "${NO_WINE_FOUND}" 2>/dev/null
-		fi
+		NO_WINE_FOUND="Konaste Linux was unable to locate a Wine binary in your PATH. Ensure that the 'wine' package is installed before attempting to initialize/update the Konaste Wine prefix."
+		"${ZENITY}" --error \
+			--title "Wine Not Found" \
+			--width 400 \
+			--text "${NO_WINE_FOUND}" 2>/dev/null
 
 		exit 1
 	fi
 
-	# Create the Wineprefix if it does not exist
-	if [[ ! -e "${WINEPREFIX}" && ! -f "${WINEPREFIX}/system.reg" ]]; then
-		log info "Wineprefix at ${WINEPREFIX} was not found. Creating one now..." >&2
-		mkdir -p "${WINEPREFIX}"
-		"${WINEBOOT}" -i 2>/dev/null
-	else
-		log warning "Existing Wineprefix detected. Starting initialization process..."
-		"${WINEBOOT}" -u 2>/dev/null
+	# Create the Wine prefix if it does not exist
+	mkdir -pv "${WINEPREFIX}" || true
+	cd "${WINEPREFIX}"
+
+	"${WINESERVER}" -p # Starts the Wine server and makes it persistent for 5 seconds after the last application closes
+
+	if [[ "$cmd" == 'update' ]]; then
+		if [[ ! -e "${WINEPREFIX}" && ! -f "${WINEPREFIX}/system.reg" ]]; then
+			log error "Prefix has not been initialized. Please run \033[1mkonaste init\033[0m"
+			WINEPREFIX_UPDATE_NOT_INIT="Konaste Linux was unable to update the Wine prefix at <tt>${WINEPREFIX}</tt> because it has not yet been initialized. Please run <tt>konaste init</tt> instead of <tt>konaste update</tt>."
+			"${ZENITY}" --error \
+				--title "Wine Prefix Not Initialized" \
+				--width 400 \
+				--text "${WINEPREFIX_UPDATE_NOT_INIT}" 2>/dev/null
+			exit 7
+		fi
+
+		local _klVer="$(cat .klver || true)"
+		if [[ "$_klVer" == "${VERSION}" ]]; then
+			PREFIX_REDO_UPDATE="The Wine prefix at <tt>${WINEPREFIX}</tt> is already up to date. Do you want to update it anyways?"
+
+			"${ZENITY}" --question \
+				--title "Prefix Up-to-date" \
+				--width 400 \
+				--text "${PREFIX_REDO_UPDATE}" 2>/dev/null
+
+			if [[ $? -eq 1 ]]; then
+				exit 1
+			fi
+		fi
+
+		log info "Updating prefix at \033[1m${WINEPREFIX}\033[0m..."
+		"${WINEBOOT}" -u
+	elif [[ "$cmd" == 'init' ]]; then
+		if [[ ! -e "${WINEPREFIX}" && ! -f "${WINEPREFIX}/system.reg" ]]; then
+			log info "Wine prefix at ${WINEPREFIX} was not found. Creating one now..." >&2
+			"${WINEBOOT}" -i
+		else
+			log warning "Existing Wine prefix detected."
+			"${WINEBOOT}" -u
+		fi
 	fi
 
-	DXVK_LINK="https://github.com/doitsujin/dxvk/releases/download/v2.7.1/dxvk-2.7.1.tar.gz"
-	VCR2010_LINK="https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe"
+	local DXVK_LINK="https://github.com/doitsujin/dxvk/releases/download/v3.1.1/dxvk-3.1.1.tar.gz"
+	local VCR2010_LINK="https://download.microsoft.com/download/1/6/5/165255E7-1014-4D0A-B094-B6A430A6BFFC/vcredist_x64.exe"
 
 	# Add the fonts so Japanese/Chinese characters render properly
 	# Distros are pretty weird with how they package fonts, especially the Noto CJK ones
@@ -508,20 +522,38 @@ prepare_wineprefix() {
 	cd "${WINEPREFIX}/drive_c"
 
 	# might be redundant since wine already bundles a version of vcr2010
-	log info 'Downloading Microsoft Visual C++ Redist 2010...' >&2
-	"${WGET}" -t 3 -O "${WINEPREFIX}/drive_c/$(basename -- $VCR2010_LINK)" "$VCR2010_LINK"
-	if [[ $? -ne 0 ]]; then
-		log error "Failed to install Microsoft Visual C++ Redist 2010!"
-		exit 3
-	else
-		log info 'Installing Microsoft Visual C++ Redist 2010...' >&2
-		"${WINE}" 'C:\vcredist_x64.exe' '/quiet' 2>/dev/null
+	if [[ "$cmd" != 'update' ]]; then
+		log info 'Downloading Microsoft Visual C++ Redist 2010...' >&2
+		"${WGET}" -t 3 -O "${WINEPREFIX}/drive_c/$(basename -- $VCR2010_LINK)" "$VCR2010_LINK"
 		if [[ $? -ne 0 ]]; then
-			log error "Failed to install Microsoft Visual C++ Redist 2010!"
-			exit 4
-		fi
+			log error "Failed to download Microsoft Visual C++ Redist 2010!"
 
-		rm "$(basename -- $VCR2010_LINK)"
+			VCR2010_DOWNLOAD_FAILURE="Konaste Linux has failed to download the installer for the <b>Visual C++ Redist 2010 runtime</b>."
+			"${ZENITY}" --error \
+				--title "Failed to Initialize Prefix" \
+				--width 400 \
+				--text "${VCR2010_DOWNLOAD_FAILURE}" 2>/dev/null
+
+			"${WINESERVER}" -k
+			exit 3
+		else
+			log info 'Installing Microsoft Visual C++ Redist 2010...' >&2
+			"${WINE}" 'C:\vcredist_x64.exe' '/quiet'
+			if [[ $? -ne 0 ]]; then
+				log error "Failed to install Microsoft Visual C++ Redist 2010!"
+
+				VCR2010_INSTALL_FAILURE="Konaste Linux has failed to install the <b>Visual C++ Redist 2010 runtime</b>."
+				"${ZENITY}" --error \
+					--title "Failed to Initialize Prefix" \
+					--width 400 \
+					--text "${VCR2010_INSTALL_FAILURE}" 2>/dev/null
+
+				"${WINESERVER}" -k
+				exit 4
+			fi
+
+			rm "$(basename -- $VCR2010_LINK)"
+		fi
 	fi
 
 	log info "Downloading DXVK archive..."
@@ -534,6 +566,7 @@ prepare_wineprefix() {
 			--text "Konaste Linux was unable to download and install DXVK. Do you want to continue without it? (NOT RECOMMENDED!)" 2>/dev/null
 
 		if [[ $? -ne 0 ]]; then
+			"${WINESERVER}" -k
 			exit 5
 		fi
 
@@ -547,7 +580,7 @@ prepare_wineprefix() {
 		mv -b dxvk-*/x32/*.dll windows/syswow64/
 		mv -b dxvk-*/x64/*.dll windows/system32/
 
-		# DX8 and DX10 might not be needed, since the BEMANI games run with DX9 and bonga uses DX11 (unity moment)
+		# DX8 and DX10 might not be needed, since the BEMANI games run with DX9 and bonga uses DX11(?)
 		log info "Setting DLL overrides for DXVK..." >&2
 		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'd3d8' /t 'REG_SZ' /d 'native' /f '/reg:64' > /dev/null
 		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'd3d8' /t 'REG_SZ' /d 'native' /f > /dev/null
@@ -559,27 +592,42 @@ prepare_wineprefix() {
 		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'd3d11' /t 'REG_SZ' /d 'native' /f > /dev/null
 		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'dxgi' /t 'REG_SZ' /d 'native' /f '/reg:64' > /dev/null
 		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'dxgi' /t 'REG_SZ' /d 'native' /f > /dev/null
+		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'd3dx9_43' /d 'native' /f > /dev/null
+		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'd3dcompiler_43' /d 'native' /f > /dev/null
+		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'msvcr100' /d 'native' /f > /dev/null
+		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'msvcp100' /d 'native' /f > /dev/null
+		"${WINE}" reg add 'HKCU\SOFTWARE\Wine\DllOverrides' /v 'vcomp100' /d 'native' /f > /dev/null
 
 		# Clean up remaining files
 		rm -rf dxvk-*
 	fi
 
 	log info "Creating additional registry keys..." >&2
-	"${WINE}" reg add 'HKCU\SOFTWARE\Wine\X11 Driver' /v 'UseXRandR' /t 'REG_SZ' /d 'Y' /f '/reg:64' > /dev/null				# Use xrandr on X11 to change resolution + refresh if needed
-	"${WINE}" reg add 'HKLM\SOFTWARE\Microsoft\DirectDraw' /v 'ForceRefreshRate' /t 'REG_DWORD' /d 120 /f '/reg:64' > /dev/null	# Force 120Hz in virtual desktop
-	"${WINE}" reg add 'HKCU\SOFTWARE\Wine\FileOpenAssociations' /v 'Enable' /d 'N' /f > /dev/null								# Stop Wine from creating desktop & mime entries
-	"${WINE}" reg add 'HKCU\SOFTWARE\Wine\Explorer\Desktops' /v 'Konaste' /d '1920x1080' /f > /dev/null							# Virtual desktop
+	"${WINE}" reg add 'HKCU\SOFTWARE\Wine\X11 Driver' /v 'UseXRandR' /t 'REG_SZ' /d 'Y' /f '/reg:64' > /dev/null            # Use xrandr on X11 to change resolution + refresh if needed
+	"${WINE}" reg add 'HKCU\SOFTWARE\Wine\Drivers' /v 'Graphics' /t 'REG_SZ' /d 'wayland,x11' /f '/reg:64' > /dev/null      # Use Wayland by default instead of X11
+	"${WINE}" reg add 'HKCU\SOFTWARE\Wine\FileOpenAssociations' /v 'Enable' /d 'N' /f > /dev/null                           # Stop Wine from creating desktop & mime entries
+	"${WINE}" reg add 'HKCU\SOFTWARE\Wine\Explorer\Desktops' /v 'Konaste' /d '1920x1080' /f > /dev/null                     # Virtual desktop for --wine-vd
+
 
 	# Officially introduced in Wine 10.0 to use ffmpeg over gstreamer for Media Foundation libraries.
 	# Currently disabled due to an audio bug in beatmania IIDX INFINITAS involving songs that utilize the new
 	# audio container (some CANNON BALLERS & Rootage songs, and all HEROIC VERSE, BISTROVER, CastHour, and RESIDENT songs).
-	"${WINE}" reg add 'HKCU\SOFTWARE\Wine\MediaFoundation' /v 'DisableGstByteStreamHandler' /t 'REG_DWORD' /d 0 /f '/reg:64' > /dev/null
+	"${WINE}" reg add /v 'DisableGstByteStreamHandler' /t 'REG_DWORD' /d 0 /f '/reg:64' > /dev/null
 
-	case "${LANG}" in
-		ja*) PREFIX_INIT="Wineprefixは初期化され、コナステで使用できるようになりました" ;;
-		*)   PREFIX_INIT="Wineprefix has been initialized and is ready to use for Konaste" ;;
-	esac
-	log ok "${PREFIX_INIT}" >&2
+	echo "${VERSION}" > "${WINEPREFIX}"/.klver
+
+	if [[ "$cmd" == 'update' ]]; then
+		case "${LANG}" in
+			*)   COMPLETED="Prefix update to v${VERSION} complete"
+		esac
+	else
+		case "${LANG}" in
+			ja*) COMPLETED="Wine prefixは初期化され、コナステで使用できるようになりました" ;;
+			*)   COMPLETED="Wine prefix has been initialized and is ready to use for Konaste" ;;
+		esac
+	fi
+
+	log ok "${COMPLETED}" >&2
 }
 
 launch_game() {
@@ -603,10 +651,18 @@ launch_game() {
 
 	# Due to how Wayland is coded, it causes IIDX INFINITAS to fail to find a suitable display mode if your refresh rate
 	# is set to anything other than 60 or 120Hz, so this warning is absolutely necessary.
-	if [[ "$toPlay" == 'iidx' && "$XDG_SESSION_TYPE" == 'wayland' && $useGamescope -ne 1 ]]; then
-		IIDX_WAYLAND_WARNING="You appear to be on a Wayland session provided by ${XDG_CURRENT_DESKTOP}. Due to how Wayland is coded, it only exposes your currently set refresh rate to applications, and because beatmania IIDX INFINITAS cannot automatically find a suitable mode, it will throw a display initialization error on startup. Before clicking 'OK', ensure that your refresh rate is set to 60Hz (or 120Hz if supported by your display)."
+	if [[ "$toPlay" == 'iidx' && "$XDG_SESSION_TYPE" == 'wayland' ]]; then
+		IIDX_WAYLAND_WARNING="You appear to be on a Wayland session provided by ${XDG_CURRENT_DESKTOP}. If you are using a refresh rate above 60Hz"
+		"${ZENITY}" --warning \
+			--title "Wayland Warning" \
+			--width 450 \
+			--extra-button "Don't Show Again" \
+			--text "${IIDX_WAYLAND_WARNING}" 2>/dev/null
 
-		[[ -x "${ZENITY}" ]] && "${ZENITY}" --warning --title "Wayland Warning" --width 400 --text "${IIDX_WAYLAND_WARNING}" 2>/dev/null
+		if [[ $? -ne 0 ]]; then
+			echo 'iidx_wayland_warning' >> "${WINEPREFIX}"/.ignoredwarns
+			log info "Wayland warning for beatmania IIDX INFINITAS will not be shown again."
+		fi
 		unset IIDX_WAYLAND_WARNING
 	fi
 
@@ -618,14 +674,15 @@ launch_game() {
 			[[ -z "${PW_LOOPBACK}" ]] && log error "Missing PipeWire executable: pw-loopback" && exit 1
 			[[ -z "${PACTL}" ]] && log error "Missing dependency: libpulse" && exit 1
 
-			# I may have had help from ChatGPT for this part (damn regular expressions...)
-			current_samplerate=$($PACTL info | grep -w 'Default Sample Specification:' | sed 's/.* \([0-9]*\)Hz/\1/')
+			current_samplerate=$($PACTL info | grep -Eo '[0-9]{4,}Hz' | tr -dc '[:digit:]' ) # this is probably inefficient, but at this point, i don't care
 			if [[ "$current_samplerate" -ne 44100 ]]; then
 				log warning "Audio sample rate detected at ${current_samplerate}Hz. Enabling loopback device..."
 				"${PW_LOOPBACK}" -m '[ FL FR ]' --capture-props='media.class=Audio/Sink node.name=konaste node.description=Konaste audio.rate=44100' &
-				[[ $? -eq 0 ]] && log info "Successfully enabled PipeWire loopback device" >&2 && export PULSE_SINK=konaste
+				export LOOPBACK_PID=$!
+				export PULSE_SINK=konaste
+				log info "PipeWire loopback device created as PID $LOOPBACK_PID"
 			else
-				log info "Audio sample rate detected at 44100Hz. Not creating loopback device..." >&2
+				log info "Audio sample rate detected at 44100Hz. Not creating loopback device..."
 			fi
 			unset current_samplerate
 		fi
@@ -636,21 +693,23 @@ launch_game() {
 	launchParams+=( "${WINE}" start '/high' '/wait' )
 	[[ $useWineVD -eq 1 ]] && launchParams+=( explorer '/desktop=Konaste,1920x1080' )
 
-	# The time has finally come.
+	# And thus, we have arrived at the point where we start the game.
 	LANG='ja_JP.UTF-8' "${launchParams[@]}" "${launcher}" "${launchUri}"
 	"${WINESERVER}" -w
 
-	# Kill the loopback device if it's running
-	if [[ $(jobs | wc -l) -gt 0 ]]; then
-		kill -15 $(jobs -p)
+	# Little thing added for fun because IIDX EMPRESS's credits song is amazing.
+	[[ "$toPlay" == 'iidx' ]] && echo -e "\n\033[1;95mThank you for playing...\033[0m\n"
+
+	if [[ ! -z $LOOPBACK_PID ]]; then
+		kill -15 $LOOPBACK_PID
 		if [[ $? -eq 0 ]]; then
-			log info "Terminated PipeWire loopback device"
+			log ok "Terminated loopback device"
+		else
+			log warning "Failed to terminate loopback device! You may need to manually kill it."
 		fi
 	fi
 
-	# Little thing added for fun because IIDX EMPRESS's credits song is amazing.
-	[[ "$toPlay" == 'iidx' ]] && echo -e "\n\033[1;95mThank you for playing...\033[0m\n"
-	exit 0 # exit with a code of 0 in case the above fails (this would return a non-zero value, indicating an "error")
+	exit
 }
 
 install_game() {
@@ -746,7 +805,13 @@ main() {
 	[[ $EUID -eq 0 ]] && log warning "Avoid running this script as root/sudo."
 
 	if [[ ! -x "${ZENITY}" ]]; then
-		log warning "No dialog handler detected!"
+		log error "No dialog handler detected!"
+		exit 1
+	fi
+
+	# Removes all "wine-staging XX.XX" messages in the console
+	if [[ $("${WINE}" --version | grep '(Staging)') ]]; then
+		export WINEDEBUG="fixme-winediag,${WINEDEBUG}"
 	fi
 
 	# Checks the version of Wine in use to make sure it's based on 9.0 or later
@@ -759,7 +824,7 @@ main() {
 			OUTDATED_WINE="Konaste Linux requires a build of Wine based on 9.0 or later."
 			log error "Wine build detected is out of date. Please upgrade your Wine package to 9.0 or later."
 
-			[[ -x "${ZENITY}" ]] && "${ZENITY}" --error \
+			"${ZENITY}" --error \
 				--title "Outdated Wine Build" \
 				--width 350 \
 				--text "${OUTDATED_WINE}" 2>/dev/null
@@ -769,20 +834,18 @@ main() {
 			# Wine 11.5 introduced something that breaks the updaters, resulting in them outputting a "ReadErr" error.
 			BROKENWINE11_5="Konaste Linux has detected you are using a build of Wine based on version 11.5. This version of Wine introduces a critical bug that breaks the updater for each Konaste game. If possible, please update your Wine package to the latest version available, or downgrade to 11.4 or earlier."
 			log error "Wine 11.5 detected; aborting"
-			if [[ -x "${ZENITY}" ]]; then
-				"${ZENITY}" --error \
-					--title "Broken Wine Build Detected" \
-					--width 400 \
-					--text "${BROKENWINE11_5}" 2>/dev/null
-					exit 115 # heh
-			fi
+			"${ZENITY}" --error \
+				--title "Broken Wine Build Detected" \
+				--width 400 \
+				--text "${BROKENWINE11_5}" 2>/dev/null
+
+			exit 115 # heh
 		fi
 	else
 		log warning "KONASTE_SKIP_WINE_CHECK exported; skipping Wine check..."
 	fi
 
 	unset _wineVer
-
 
 	parse_flags "$@"
 
@@ -794,19 +857,17 @@ main() {
 			prepare_wineprefix
 			exit
 		elif [[ "$TERM" == 'dumb' ]]; then
-			if [[ -x "${ZENITY}" ]]; then
-				"${ZENITY}" --question \
-					--width 300 \
-					--title "No Wineprefix Found" \
-					--text "In order to use Konaste Linux, a Wineprefix must be created. Do you want to create one now?" 2>/dev/null
-				if [[ $? -eq 0 ]]; then
-					prepare_wineprefix
-				else
-					exit 1
-				fi
+			"${ZENITY}" --question \
+				--width 300 \
+				--title "No Wine prefix Found" \
+				--text "In order to use Konaste Linux, a Wine prefix must be created. Do you want to create one now?" 2>/dev/null
+			if [[ $? -eq 0 ]]; then
+				prepare_wineprefix
+			else
+				exit 1
 			fi
 		else
-			log error "Wineprefix has not been initialized"
+			log error "Wine prefix has not been initialized"
 			echo -e "Run \033[1m$(basename -- $0) init\033[0m to initialize the prefix"
 			exit 1
 		fi
@@ -814,17 +875,24 @@ main() {
 
 	if [[ -n "$cmd" ]]; then # If $cmd is set, run something here
 		case "$cmd" in
-			init) prepare_wineprefix ;;
-			#list) list_games ;;
+			init|update) prepare_wineprefix ;;
 			*) ;;
 		esac
 
 		exit
 	else # Run the game.
+		local _klver=$(cat "${WINEPREFIX}"/.klver || true)
+		if [[ "$_klver" != "${VERSION}" ]]; then
+			log info "Updating prefix to v${VERSION} from ${_klVer:-unknown}..."
+			prepare_wineprefix
+		else
+			log info "Prefix is up-to-date (v${VERSION})"
+		fi
+
 		launcher="$(get_launcher_for_game)"
 		if [[ -z "$launcher" ]]; then
 			log error "$(get_title) is not installed"
-			if [[ "$TERM" == 'dumb' && -x "${ZENITY}" ]]; then
+			if [[ "$TERM" == 'dumb' ]]; then
 				# Ask the user if they want to install the game
 				"${ZENITY}" --question \
 					--title "Not Installed" \
